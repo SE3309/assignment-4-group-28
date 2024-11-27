@@ -14,7 +14,7 @@ export default function HomePage() {
             </p>
             <div className="mt-12 flex items-center justify-center gap-x-6">
               <Link
-                to="/"
+                to="/athletes"
                 className="rounded-md bg-orange-600 px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-orange-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600"
               >
                 Start Scouting

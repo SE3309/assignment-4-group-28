@@ -23,9 +23,7 @@ export default function Navbar() {
             <Link to="/analytics" className="text-gray-700 hover:text-orange-600 px-3 py-2 text-base font-medium">
               Analytics
             </Link>
-            <Link to="/reports" className="text-gray-700 hover:text-orange-600 px-3 py-2 text-base font-medium">
-              Reports
-            </Link>
+
             <Link to="/manage" className="text-gray-700 hover:text-orange-600 px-3 py-2 text-base font-medium">
               Management
             </Link>

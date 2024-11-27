@@ -3,6 +3,7 @@ import HomePage from './pages/HomePage';
 import ManagementPage from './pages/ManagementPage';
 import AthletesPage from './pages/AthletesPage';
 import TeamsPage from './pages/TeamsPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 import Navbar from './components/Navbar';
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
           <Route path="/manage" element={<ManagementPage />} />
           <Route path="/athletes" element={<AthletesPage />} />
           <Route path="/teams" element={<TeamsPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
         </Routes>
       </div>
     </Router>

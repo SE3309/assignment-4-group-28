@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import ManagementPage from './pages/ManagementPage';
+import AthletesPage from './pages/AthletesPage';
+import TeamsPage from './pages/TeamsPage';
 import Navbar from './components/Navbar';
 
 function App() {
@@ -11,6 +13,8 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/manage" element={<ManagementPage />} />
+          <Route path="/athletes" element={<AthletesPage />} />
+          <Route path="/teams" element={<TeamsPage />} />
         </Routes>
       </div>
     </Router>

@@ -23,7 +23,7 @@ export default function ManagementPage() {
               Data Management Center
             </h1>
             <p className="mt-4 text-pretty text-lg font-medium text-gray-500 sm:text-xl/8">
-              Add, update, or remove athlete profiles, team information, and game statistics in one centralized location.
+              Add athlete profiles, team information, and game statistics.
             </p>
           </div>
 

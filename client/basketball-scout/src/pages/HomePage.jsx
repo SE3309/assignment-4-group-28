@@ -4,7 +4,7 @@ export default function HomePage() {
   return (
     <div className="bg-white">
       <div className="relative isolate px-8 pt-16 lg:px-10">
-        <div className="mx-auto max-w-4xl py-36 sm:py-52 lg:py-60">
+        <div className="mx-auto max-w-4xl py-24 sm:py-32 lg:py-40">
           <div className="text-center">
             <h1 className="text-balance text-5xl font-semibold tracking-tight text-gray-900 sm:text-7xl">
               Discover Tomorrow's Basketball Stars Today

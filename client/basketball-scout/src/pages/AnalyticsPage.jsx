@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export default function AnalyticsPage() {
   // State for filters
@@ -9,40 +10,162 @@ export default function AnalyticsPage() {
   const [minInjuryDays, setMinInjuryDays] = useState('');
   const [minTeamPoints, setMinTeamPoints] = useState('');
 
-  // Example data - replace with actual API calls
-  const topScorers = [
-    { id: 1, name: "LeBron James", points: 42, game: "Lakers vs Warriors", date: "2024-03-15" },
-    { id: 2, name: "Stephen Curry", points: 38, game: "Warriors vs Celtics", date: "2024-03-14" }
-  ];
+  // State for data
+  const [topScorers, setTopScorers] = useState([]);
+  const [teamRatios, setTeamRatios] = useState([]);
+  const [highestScoringTeams, setHighestScoringTeams] = useState([]);
+  const [awardWinners, setAwardWinners] = useState([]);
+  const [injuredPlayers, setInjuredPlayers] = useState([]);
+  const [teamAverages, setTeamAverages] = useState([]);
 
-  const teamRatios = [
-    { id: 1, name: "Boston Celtics", wins: 45, losses: 12, ratio: "0.789" },
-    { id: 2, name: "Denver Nuggets", wins: 42, losses: 15, ratio: "0.737" }
-  ];
+  // Loading states
+  const [loading, setLoading] = useState({
+    scorers: false,
+    ratios: false,
+    scoring: false,
+    awards: false,
+    injuries: false,
+    averages: false
+  });
 
-  const highestScoringTeams = [
-    { id: 1, name: "Sacramento Kings", totalScore: 9876, gamesPlayed: 57 },
-    { id: 2, name: "Milwaukee Bucks", totalScore: 9654, gamesPlayed: 58 }
-  ];
+  // Error states
+  const [error, setError] = useState({
+    scorers: null,
+    ratios: null,
+    scoring: null,
+    awards: null,
+    injuries: null,
+    averages: null
+  });
 
-  const awardWinners = [
-    { id: 1, name: "Nikola Jokic", award: "MVP", year: "2023" },
-    { id: 2, name: "Jayson Tatum", award: "All-Star MVP", year: "2024" }
-  ];
+  // API base URL
+  const API_BASE_URL = 'http://localhost:3001/api';
 
-  const injuredPlayers = [
-    { id: 1, name: "Joel Embiid", injury: "Knee", daysOut: 45 },
-    { id: 2, name: "Ja Morant", injury: "Shoulder", daysOut: 30 }
-  ];
+  // Fetch initial data
+  useEffect(() => {
+    fetchTopScorers();
+    fetchTeamRatios();
+    fetchHighestScoringTeams();
+    fetchAwardWinners();
+    fetchInjuredPlayers();
+    fetchTeamAverages();
+  }, []);
 
-  const teamAverages = [
-    { id: 1, team: "Phoenix Suns", avgPoints: 118.5 },
-    { id: 2, team: "Indiana Pacers", avgPoints: 117.8 }
-  ];
+  // API fetch functions
+  const fetchTopScorers = async (date = '') => {
+    setLoading(prev => ({ ...prev, scorers: true }));
+    try {
+      const response = await axios.get(`${API_BASE_URL}/analytics/top-scorers`, {
+        params: { date }
+      });
+      setTopScorers(response.data.topScorers);
+      setError(prev => ({ ...prev, scorers: null }));
+    } catch (err) {
+      setError(prev => ({ ...prev, scorers: 'Error fetching top scorers' }));
+    } finally {
+      setLoading(prev => ({ ...prev, scorers: false }));
+    }
+  };
 
+  const fetchTeamRatios = async (minRatio = 0) => {
+    setLoading(prev => ({ ...prev, ratios: true }));
+    try {
+      const response = await axios.get(`${API_BASE_URL}/analytics/team-ratios`, {
+        params: { minRatio }
+      });
+      setTeamRatios(response.data.teamRatios);
+      setError(prev => ({ ...prev, ratios: null }));
+    } catch (err) {
+      setError(prev => ({ ...prev, ratios: 'Error fetching team ratios' }));
+    } finally {
+      setLoading(prev => ({ ...prev, ratios: false }));
+    }
+  };
+
+  const fetchHighestScoringTeams = async (minGames = 0) => {
+    setLoading(prev => ({ ...prev, scoring: true }));
+    try {
+      const response = await axios.get(`${API_BASE_URL}/analytics/highest-scoring`, {
+        params: { minGames }
+      });
+      setHighestScoringTeams(response.data.highestScoringTeams);
+      setError(prev => ({ ...prev, scoring: null }));
+    } catch (err) {
+      setError(prev => ({ ...prev, scoring: 'Error fetching highest scoring teams' }));
+    } finally {
+      setLoading(prev => ({ ...prev, scoring: false }));
+    }
+  };
+
+  const fetchAwardWinners = async (type = '') => {
+    setLoading(prev => ({ ...prev, awards: true }));
+    try {
+      const response = await axios.get(`${API_BASE_URL}/analytics/award-winners`, {
+        params: { type }
+      });
+      setAwardWinners(response.data.awardWinners);
+      setError(prev => ({ ...prev, awards: null }));
+    } catch (err) {
+      setError(prev => ({ ...prev, awards: 'Error fetching award winners' }));
+    } finally {
+      setLoading(prev => ({ ...prev, awards: false }));
+    }
+  };
+
+  const fetchInjuredPlayers = async (minDays = 0) => {
+    setLoading(prev => ({ ...prev, injuries: true }));
+    try {
+      const response = await axios.get(`${API_BASE_URL}/analytics/injured-players`, {
+        params: { minDays }
+      });
+      setInjuredPlayers(response.data.injuredPlayers);
+      setError(prev => ({ ...prev, injuries: null }));
+    } catch (err) {
+      setError(prev => ({ ...prev, injuries: 'Error fetching injured players' }));
+    } finally {
+      setLoading(prev => ({ ...prev, injuries: false }));
+    }
+  };
+
+  const fetchTeamAverages = async (minPoints = 0) => {
+    setLoading(prev => ({ ...prev, averages: true }));
+    try {
+      const response = await axios.get(`${API_BASE_URL}/analytics/team-averages`, {
+        params: { minPoints }
+      });
+      setTeamAverages(response.data.teamAverages);
+      setError(prev => ({ ...prev, averages: null }));
+    } catch (err) {
+      setError(prev => ({ ...prev, averages: 'Error fetching team averages' }));
+    } finally {
+      setLoading(prev => ({ ...prev, averages: false }));
+    }
+  };
+
+  // Handle search functions
   const handleSearch = (section, filterValue) => {
-    console.log(`Searching ${section} with filter:`, filterValue);
-    // Implement actual API calls here
+    switch (section) {
+      case 'topScorers':
+        fetchTopScorers(gameDate);
+        break;
+      case 'winRatio':
+        fetchTeamRatios(minWinRatio);
+        break;
+      case 'highScoring':
+        fetchHighestScoringTeams(minGamesPlayed);
+        break;
+      case 'awards':
+        fetchAwardWinners(awardType);
+        break;
+      case 'injuries':
+        fetchInjuredPlayers(minInjuryDays);
+        break;
+      case 'teamAverages':
+        fetchTeamAverages(minTeamPoints);
+        break;
+      default:
+        console.error('Unknown section:', section);
+    }
   };
 
   return (

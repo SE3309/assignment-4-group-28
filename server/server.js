@@ -527,6 +527,186 @@ app.get('/api/games', (req, res) => {
     });
 });
 
+// Analytics Routes - Updated with LIMIT 5
+
+// GET top scorers by date
+app.get('/api/analytics/top-scorers', (req, res) => {
+    const gameDate = req.query.date;
+    let query = `
+        SELECT 
+            a.player_name,
+            s.points,
+            CONCAT(ht.team_name, ' vs ', at.team_name) as game,
+            g.date
+        FROM Statistic s
+        JOIN Athlete a ON s.player_ID = a.player_ID
+        JOIN Game g ON s.match_ID = g.game_ID
+        JOIN Team ht ON g.home_team_ID = ht.team_ID
+        JOIN Team at ON g.away_team_ID = at.team_ID
+    `;
+    
+    const params = [];
+    if (gameDate) {
+        query += ` WHERE DATE(g.date) = ?`;
+        params.push(gameDate);
+    }
+    
+    query += ` ORDER BY s.points DESC LIMIT 5`;
+
+    connection.query(query, params, (err, results) => {
+        if (err) {
+            console.error('Error fetching top scorers:', err);
+            res.status(500).json({ error: 'Error fetching top scorers' });
+            return;
+        }
+        res.json({ topScorers: results });
+    });
+});
+
+// GET team win-loss ratios
+app.get('/api/analytics/team-ratios', (req, res) => {
+    const minWinRatio = req.query.minRatio || 0;
+    const query = `
+        SELECT 
+            team_ID as id,
+            team_name as name,
+            wins,
+            losses,
+            ROUND(record, 3) as ratio
+        FROM Team
+        WHERE record >= ?
+        ORDER BY record DESC
+        LIMIT 5
+    `;
+
+    connection.query(query, [minWinRatio], (err, results) => {
+        if (err) {
+            console.error('Error fetching team ratios:', err);
+            res.status(500).json({ error: 'Error fetching team ratios' });
+            return;
+        }
+        res.json({ teamRatios: results });
+    });
+});
+
+// GET highest scoring teams
+app.get('/api/analytics/highest-scoring', (req, res) => {
+    const minGames = req.query.minGames || 0;
+    const query = `
+        SELECT 
+            t.team_ID as id,
+            t.team_name as name,
+            SUM(CASE 
+                WHEN g.home_team_ID = t.team_ID THEN g.home_team_score
+                ELSE g.away_team_score
+            END) as totalScore,
+            COUNT(g.game_ID) as gamesPlayed
+        FROM Team t
+        JOIN Game g ON t.team_ID IN (g.home_team_ID, g.away_team_ID)
+        GROUP BY t.team_ID
+        HAVING gamesPlayed >= ?
+        ORDER BY totalScore DESC
+        LIMIT 5
+    `;
+
+    connection.query(query, [minGames], (err, results) => {
+        if (err) {
+            console.error('Error fetching highest scoring teams:', err);
+            res.status(500).json({ error: 'Error fetching highest scoring teams' });
+            return;
+        }
+        res.json({ highestScoringTeams: results });
+    });
+});
+
+// GET award winners
+app.get('/api/analytics/award-winners', (req, res) => {
+    const awardType = req.query.type;
+    let query = `
+        SELECT 
+            aa.athlete_award_ID as id,
+            a.player_name as name,
+            aw.award_name as award,
+            YEAR(aw.award_date) as year
+        FROM Athlete_Award aa
+        JOIN Athlete a ON aa.athlete_ID = a.player_ID
+        JOIN Award aw ON aa.award_ID = aw.award_ID
+    `;
+    
+    const params = [];
+    if (awardType) {
+        query += ` WHERE aw.award_name = ?`;
+        params.push(awardType);
+    }
+    
+    query += ` ORDER BY aw.award_date DESC LIMIT 5`;
+
+    connection.query(query, params, (err, results) => {
+        if (err) {
+            console.error('Error fetching award winners:', err);
+            res.status(500).json({ error: 'Error fetching award winners' });
+            return;
+        }
+        res.json({ awardWinners: results });
+    });
+});
+
+// GET injured players
+app.get('/api/analytics/injured-players', (req, res) => {
+    const minDays = req.query.minDays || 0;
+    const query = `
+        SELECT 
+            i.injury_ID as id,
+            a.player_name as name,
+            i.injury_type as injury,
+            DATEDIFF(CURRENT_DATE, i.injury_date) as daysOut
+        FROM Injury i
+        JOIN Athlete a ON i.player_ID = a.player_ID
+        WHERE i.recovery_date IS NULL
+        AND DATEDIFF(CURRENT_DATE, i.injury_date) >= ?
+        ORDER BY daysOut DESC
+        LIMIT 5
+    `;
+
+    connection.query(query, [minDays], (err, results) => {
+        if (err) {
+            console.error('Error fetching injured players:', err);
+            res.status(500).json({ error: 'Error fetching injured players' });
+            return;
+        }
+        res.json({ injuredPlayers: results });
+    });
+});
+
+// GET team scoring averages
+app.get('/api/analytics/team-averages', (req, res) => {
+    const minPoints = req.query.minPoints || 0;
+    const query = `
+        SELECT 
+            t.team_ID as id,
+            t.team_name as team,
+            ROUND(AVG(CASE 
+                WHEN g.home_team_ID = t.team_ID THEN g.home_team_score
+                ELSE g.away_team_score
+            END), 1) as avgPoints
+        FROM Team t
+        JOIN Game g ON t.team_ID IN (g.home_team_ID, g.away_team_ID)
+        GROUP BY t.team_ID
+        HAVING avgPoints >= ?
+        ORDER BY avgPoints DESC
+        LIMIT 5
+    `;
+
+    connection.query(query, [minPoints], (err, results) => {
+        if (err) {
+            console.error('Error fetching team averages:', err);
+            res.status(500).json({ error: 'Error fetching team averages' });
+            return;
+        }
+        res.json({ teamAverages: results });
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });

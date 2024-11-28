@@ -1,172 +1,163 @@
 import { useState } from 'react';
+import axios from 'axios';
 
 export default function TeamForm() {
-  const [mode, setMode] = useState('list');
   const [formData, setFormData] = useState({
     team_name: '',
     league: '',
     wins: '',
     losses: '',
-    record: '',
     standing: '',
     location: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(formData);
-    setMode('list');
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      await axios.post('http://localhost:3001/api/teams', formData);
+      setFormData({
+        team_name: '',
+        league: '',
+        wins: '',
+        losses: '',
+        standing: '',
+        location: ''
+      });
+    } catch (err) {
+      setError('Failed to create team');
+      console.error('Error creating team:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-900">Team Management</h2>
-        <select
-          value={mode}
-          onChange={(e) => setMode(e.target.value)}
-          className="block w-40 rounded-md border border-gray-300 px-3 py-2 text-sm 
-            shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-        >
-          <option value="list">View List</option>
-          <option value="add">Add New</option>
-          <option value="search">Search</option>
-        </select>
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">Add New Team</h2>
+        <p className="mt-1 text-gray-600">Create a new team record.</p>
       </div>
 
-      {mode === 'add' && (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Team Name
-              </label>
-              <input
-                type="text"
-                name="team_name"
-                value={formData.team_name}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                League
-              </label>
-              <input
-                type="text"
-                name="league"
-                value={formData.league}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Wins
-              </label>
-              <input
-                type="number"
-                name="wins"
-                value={formData.wins}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Losses
-              </label>
-              <input
-                type="number"
-                name="losses"
-                value={formData.losses}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Standing
-              </label>
-              <input
-                type="number"
-                name="standing"
-                value={formData.standing}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Location
-              </label>
-              <input
-                type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-3">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-500"
-            >
-              Save
-            </button>
-          </div>
-        </form>
+      {error && (
+        <div className="bg-red-50 p-4 rounded-md">
+          <p className="text-red-700">{error}</p>
+        </div>
       )}
 
-      {mode === 'search' && (
-        <div className="space-y-6">
-          <div className="flex gap-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div>
+            <label htmlFor="team_name" className="block text-sm font-medium text-gray-700">
+              Team Name
+            </label>
             <input
               type="text"
-              placeholder="Search teams..."
-              className="flex-1 rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
+              name="team_name"
+              id="team_name"
+              required
+              value={formData.team_name}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
             />
-            <button className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-500">
-              Search
-            </button>
+          </div>
+
+          <div>
+            <label htmlFor="league" className="block text-sm font-medium text-gray-700">
+              League
+            </label>
+            <input
+              type="text"
+              name="league"
+              id="league"
+              value={formData.league}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="wins" className="block text-sm font-medium text-gray-700">
+              Wins
+            </label>
+            <input
+              type="number"
+              name="wins"
+              id="wins"
+              min="0"
+              value={formData.wins}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="losses" className="block text-sm font-medium text-gray-700">
+              Losses
+            </label>
+            <input
+              type="number"
+              name="losses"
+              id="losses"
+              min="0"
+              value={formData.losses}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="standing" className="block text-sm font-medium text-gray-700">
+              Standing
+            </label>
+            <input
+              type="number"
+              name="standing"
+              id="standing"
+              min="1"
+              value={formData.standing}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="location" className="block text-sm font-medium text-gray-700">
+              Location
+            </label>
+            <input
+              type="text"
+              name="location"
+              id="location"
+              value={formData.location}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
+            />
           </div>
         </div>
-      )}
 
-      {mode === 'list' && (
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
-            <li className="px-4 py-4 hover:bg-gray-50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Boston Celtics</p>
-                  <p className="text-sm text-gray-500">NBA • Boston, MA</p>
-                </div>
-                <div className="flex space-x-2">
-                  <button className="text-orange-600 hover:text-orange-900">Edit</button>
-                  <button className="text-red-600 hover:text-red-900">Delete</button>
-                </div>
-              </div>
-            </li>
-          </ul>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="inline-flex justify-center rounded-md border border-transparent bg-orange-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50"
+          >
+            {isLoading ? 'Creating...' : 'Create Team'}
+          </button>
         </div>
-      )}
+      </form>
     </div>
   );
 } 

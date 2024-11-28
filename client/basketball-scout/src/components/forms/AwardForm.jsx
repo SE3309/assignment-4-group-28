@@ -1,163 +1,212 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export default function AwardForm() {
-  const [mode, setMode] = useState('list'); // 'list', 'add', or 'search'
+  const [awards, setAwards] = useState([]);
   const [formData, setFormData] = useState({
     award_name: '',
     officiating_body: '',
-    award_date: '',
-    recipient_type: 'athlete',
-    recipient_id: ''
+    award_date: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    fetchAwards();
+  }, []);
+
+  const fetchAwards = async () => {
+    try {
+      const response = await axios.get('http://localhost:3001/api/list/awards');
+      setAwards(response.data.awards.map(award => ({
+        ...award,
+        award_date: award.award_date ? new Date(award.award_date).toISOString().split('T')[0] : ''
+      })));
+    } catch (err) {
+      setError('Failed to fetch awards');
+      console.error('Error fetching awards:', err);
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(formData);
-    setMode('list'); // Return to list view after submission
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      await axios.post('http://localhost:3001/api/awards', formData);
+      setFormData({
+        award_name: '',
+        officiating_body: '',
+        award_date: ''
+      });
+      fetchAwards(); // Refresh the list
+    } catch (err) {
+      setError('Failed to create award');
+      console.error('Error creating award:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Add pagination calculation
+  const indexOfLastAward = currentPage * itemsPerPage;
+  const indexOfFirstAward = indexOfLastAward - itemsPerPage;
+  const currentAwards = awards.slice(indexOfFirstAward, indexOfLastAward);
+  const totalPages = Math.ceil(awards.length / itemsPerPage);
+
+  // Add pagination controls
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-900">Award Management</h2>
-        <select
-          value={mode}
-          onChange={(e) => setMode(e.target.value)}
-          className="block w-40 rounded-md border border-gray-300 px-3 py-2 text-sm 
-            shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-        >
-          <option value="list">View List</option>
-          <option value="add">Add New</option>
-          <option value="search">Search</option>
-        </select>
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900">Add New Award</h2>
+        <p className="mt-1 text-gray-600">Create a new award record.</p>
       </div>
 
-      {/* Show form only in 'add' mode */}
-      {mode === 'add' && (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Award Name
-              </label>
-              <input
-                type="text"
-                name="award_name"
-                value={formData.award_name}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-                required
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Officiating Body
-              </label>
-              <input
-                type="text"
-                name="officiating_body"
-                value={formData.officiating_body}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Award Date
-              </label>
-              <input
-                type="date"
-                name="award_date"
-                value={formData.award_date}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Recipient Type
-              </label>
-              <select
-                name="recipient_type"
-                value={formData.recipient_type}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-              >
-                <option value="athlete">Athlete</option>
-                <option value="team">Team</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                {formData.recipient_type === 'athlete' ? 'Athlete ID' : 'Team ID'}
-              </label>
-              <input
-                type="number"
-                name="recipient_id"
-                value={formData.recipient_id}
-                onChange={handleChange}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-3">
-            <button
-              type="submit"
-              className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-500"
-            >
-              Save
-            </button>
-          </div>
-        </form>
+      {error && (
+        <div className="bg-red-50 p-4 rounded-md">
+          <p className="text-red-700">{error}</p>
+        </div>
       )}
 
-      {/* Show search interface in 'search' mode */}
-      {mode === 'search' && (
-        <div className="space-y-6">
-          <div className="flex gap-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div>
+            <label htmlFor="award_name" className="block text-sm font-medium text-gray-700">
+              Award Name
+            </label>
             <input
               type="text"
-              placeholder="Search awards..."
-              className="flex-1 rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
+              name="award_name"
+              id="award_name"
+              required
+              value={formData.award_name}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
             />
-            <button className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-500">
-              Search
+          </div>
+
+          <div>
+            <label htmlFor="officiating_body" className="block text-sm font-medium text-gray-700">
+              Officiating Body
+            </label>
+            <input
+              type="text"
+              name="officiating_body"
+              id="officiating_body"
+              value={formData.officiating_body}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="award_date" className="block text-sm font-medium text-gray-700">
+              Award Date
+            </label>
+            <input
+              type="date"
+              name="award_date"
+              id="award_date"
+              required
+              value={formData.award_date}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-orange-500"
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="inline-flex justify-center rounded-md border border-transparent bg-orange-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50"
+          >
+            {isLoading ? 'Creating...' : 'Create Award'}
+          </button>
+        </div>
+      </form>
+
+      {/* Updated Awards List with Pagination */}
+      <div className="mt-8">
+        <h3 className="text-lg font-medium text-gray-900">Existing Awards</h3>
+        <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+          <table className="min-w-full divide-y divide-gray-300">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Award Name</th>
+                <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Officiating Body</th>
+                <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {currentAwards.map((award) => (
+                <tr key={award.award_ID}>
+                  <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900">{award.award_name}</td>
+                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{award.officiating_body}</td>
+                  <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                    {new Date(award.award_date).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Controls - Matched exactly with AthletesPage */}
+        <div className="mt-4 flex items-center justify-between px-4 py-3 sm:px-6">
+          <div>
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-medium">{indexOfFirstAward + 1}</span> to{' '}
+              <span className="font-medium">
+                {Math.min(indexOfLastAward, awards.length)}
+              </span>{' '}
+              of <span className="font-medium">{awards.length}</span> results
+            </p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Previous
+            </button>
+            <select
+              value={currentPage}
+              onChange={(e) => handlePageChange(Number(e.target.value))}
+              className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700"
+            >
+              {[...Array(totalPages)].map((_, index) => (
+                <option key={index + 1} value={index + 1}>
+                  {index + 1}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Next
             </button>
           </div>
         </div>
-      )}
-
-      {/* Show list in 'list' mode */}
-      {mode === 'list' && (
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <ul className="divide-y divide-gray-200">
-            <li className="px-4 py-4 hover:bg-gray-50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Most Valuable Player</p>
-                  <p className="text-sm text-gray-500">NCAA • March 15, 2024</p>
-                </div>
-                <div className="flex space-x-2">
-                  <button className="text-orange-600 hover:text-orange-900">Edit</button>
-                  <button className="text-red-600 hover:text-red-900">Delete</button>
-                </div>
-              </div>
-            </li>
-          </ul>
-        </div>
-      )}
+      </div>
     </div>
   );
 } 

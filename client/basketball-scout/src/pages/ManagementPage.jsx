@@ -3,6 +3,9 @@ import AthleteForm from '../components/forms/AthleteForm';
 import TeamForm from '../components/forms/TeamForm';
 import StatisticsForm from '../components/forms/StatisticsForm';
 import AwardForm from '../components/forms/AwardForm';
+import TeamAwardForm from '../components/forms/TeamAwardForm';
+import AthleteAwardForm from '../components/forms/AthleteAwardForm';
+import GameForm from '../components/forms/GameForm';
 
 export default function ManagementPage() {
   const [activeTab, setActiveTab] = useState('athletes');
@@ -10,8 +13,11 @@ export default function ManagementPage() {
   const tabs = [
     { id: 'athletes', label: 'Athletes' },
     { id: 'teams', label: 'Teams' },
+    { id: 'games', label: 'Games' },
     { id: 'statistics', label: 'Statistics' },
     { id: 'awards', label: 'Awards' },
+    { id: 'teamAwards', label: 'Team Awards' },
+    { id: 'athleteAwards', label: 'Athlete Awards' },
   ];
 
   return (
@@ -52,8 +58,11 @@ export default function ManagementPage() {
           <div className="mt-8">
             {activeTab === 'athletes' && <AthleteForm />}
             {activeTab === 'teams' && <TeamForm />}
+            {activeTab === 'games' && <GameForm />}
             {activeTab === 'statistics' && <StatisticsForm />}
             {activeTab === 'awards' && <AwardForm />}
+            {activeTab === 'teamAwards' && <TeamAwardForm />}
+            {activeTab === 'athleteAwards' && <AthleteAwardForm />}
           </div>
         </div>
       </div>

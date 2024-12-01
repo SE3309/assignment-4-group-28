@@ -12,14 +12,16 @@ export default function TeamForm() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
-      await axios.post('http://localhost:3001/api/teams', formData);
+      const response = await axios.post('http://localhost:3001/api/teams', formData);
       setFormData({
         team_name: '',
         league: '',
@@ -28,11 +30,23 @@ export default function TeamForm() {
         standing: '',
         location: ''
       });
+      setSuccessMessage(`Successfully created team: ${formData.team_name}`);
     } catch (err) {
-      setError('Failed to create team');
+      if (err.response) {
+        setError(err.response.data.message || 'Failed to create team. Please check all required fields.');
+      } else if (err.request) {
+        setError('Unable to reach the server. Please check your connection and try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
       console.error('Error creating team:', err);
     } finally {
       setIsLoading(false);
+      if (successMessage) {
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 5000);
+      }
     }
   };
 
@@ -53,7 +67,31 @@ export default function TeamForm() {
 
       {error && (
         <div className="bg-red-50 p-4 rounded-md">
-          <p className="text-red-700">{error}</p>
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-red-800">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="bg-green-50 p-4 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">{successMessage}</p>
+            </div>
+          </div>
         </div>
       )}
 

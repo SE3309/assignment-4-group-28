@@ -41,6 +41,9 @@ export default function AnalyticsPage() {
   // API base URL
   const API_BASE_URL = 'http://localhost:3001/api';
 
+  // Add new state for award types
+  const [awardTypes, setAwardTypes] = useState([]);
+
   // Fetch initial data
   useEffect(() => {
     fetchTopScorers();
@@ -49,6 +52,22 @@ export default function AnalyticsPage() {
     fetchAwardWinners();
     fetchInjuredPlayers();
     fetchTeamAverages();
+  }, []);
+
+  // Add new useEffect to fetch award types
+  useEffect(() => {
+    const fetchAwardTypes = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/list/awards`);
+        // Extract unique award names
+        const uniqueAwards = [...new Set(response.data.awards.map(award => award.award_name))];
+        setAwardTypes(uniqueAwards);
+      } catch (err) {
+        console.error('Error fetching award types:', err);
+      }
+    };
+    
+    fetchAwardTypes();
   }, []);
 
   // API fetch functions
@@ -88,9 +107,11 @@ export default function AnalyticsPage() {
       const response = await axios.get(`${API_BASE_URL}/analytics/highest-scoring`, {
         params: { minGames }
       });
+      console.log('Highest scoring teams response:', response.data);
       setHighestScoringTeams(response.data.highestScoringTeams);
       setError(prev => ({ ...prev, scoring: null }));
     } catch (err) {
+      console.error('Error fetching highest scoring teams:', err);
       setError(prev => ({ ...prev, scoring: 'Error fetching highest scoring teams' }));
     } finally {
       setLoading(prev => ({ ...prev, scoring: false }));
@@ -118,9 +139,11 @@ export default function AnalyticsPage() {
       const response = await axios.get(`${API_BASE_URL}/analytics/injured-players`, {
         params: { minDays }
       });
+      console.log('Injured players response:', response.data);
       setInjuredPlayers(response.data.injuredPlayers);
       setError(prev => ({ ...prev, injuries: null }));
     } catch (err) {
+      console.error('Error fetching injured players:', err);
       setError(prev => ({ ...prev, injuries: 'Error fetching injured players' }));
     } finally {
       setLoading(prev => ({ ...prev, injuries: false }));
@@ -320,11 +343,10 @@ export default function AnalyticsPage() {
                 onChange={(e) => setAwardType(e.target.value)}
                 className="flex-1 rounded-md border border-gray-300 px-4 py-2 focus:border-orange-500 focus:ring-orange-500"
               >
-                <option value="">Select Award Type</option>
-                <option value="MVP">MVP</option>
-                <option value="All-Star">All-Star</option>
-                <option value="DPOY">Defensive Player of the Year</option>
-                <option value="ROY">Rookie of the Year</option>
+                <option value="">All Awards</option>
+                {awardTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
               </select>
               <button
                 onClick={() => handleSearch('awards', awardType)}

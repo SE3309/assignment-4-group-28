@@ -11,6 +11,14 @@ export default function TeamAwardForm() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentTeamAwards = teamAwards.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(teamAwards.length / itemsPerPage);
 
   useEffect(() => {
     fetchTeams();
@@ -39,9 +47,10 @@ export default function TeamAwardForm() {
   const fetchTeamAwards = async () => {
     try {
       const response = await axios.get('http://localhost:3001/api/team-awards');
-      setTeamAwards(response.data);
+      setTeamAwards(response.data.teamAwards || []);
     } catch (err) {
       console.error('Error fetching team awards:', err);
+      setTeamAwards([]);
     }
   };
 
@@ -49,19 +58,34 @@ export default function TeamAwardForm() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       await axios.post('http://localhost:3001/api/team-awards', formData);
+      const team = teams.find(t => t.team_ID === parseInt(formData.team_ID));
+      const award = awards.find(a => a.award_ID === parseInt(formData.award_ID));
+      setSuccessMessage(`Successfully assigned ${award?.award_name} to ${team?.team_name}`);
       setFormData({
         team_ID: '',
         award_ID: ''
       });
-      fetchTeamAwards(); // Refresh the list
+      fetchTeamAwards();
     } catch (err) {
-      setError('Failed to assign award to team');
+      if (err.response) {
+        setError(err.response.data.message || 'Failed to assign award. Please check your selection.');
+      } else if (err.request) {
+        setError('Unable to reach the server. Please check your connection and try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
       console.error('Error assigning award:', err);
     } finally {
       setIsLoading(false);
+      if (successMessage) {
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 5000);
+      }
     }
   };
 
@@ -71,6 +95,10 @@ export default function TeamAwardForm() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
   };
 
   return (
@@ -83,6 +111,21 @@ export default function TeamAwardForm() {
       {error && (
         <div className="bg-red-50 p-4 rounded-md">
           <p className="text-red-700">{error}</p>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="bg-green-50 p-4 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">{successMessage}</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -154,7 +197,7 @@ export default function TeamAwardForm() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
-              {teamAwards.map((ta) => (
+              {currentTeamAwards.map((ta) => (
                 <tr key={`${ta.team_ID}-${ta.award_ID}`}>
                   <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-900">
                     {teams.find(t => t.team_ID === ta.team_ID)?.team_name}
@@ -166,6 +209,64 @@ export default function TeamAwardForm() {
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="mt-4 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+          <div className="flex flex-1 justify-between sm:hidden">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Next
+            </button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Showing <span className="font-medium">{indexOfFirstItem + 1}</span> to{' '}
+                <span className="font-medium">
+                  {Math.min(indexOfLastItem, teamAwards.length)}
+                </span>{' '}
+                of <span className="font-medium">{teamAwards.length}</span> results
+              </p>
+            </div>
+            <div>
+              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                >
+                  <span className="sr-only">Previous</span>
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <button
+                  className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                >
+                  Page {currentPage}
+                </button>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                >
+                  <span className="sr-only">Next</span>
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          </div>
         </div>
       </div>
     </div>

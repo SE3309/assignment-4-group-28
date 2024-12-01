@@ -89,7 +89,7 @@ app.get('/api/athletes/search', (req, res) => {
     const query = `
         SELECT * FROM Athlete 
         WHERE player_name LIKE ? 
-        OR position LIKE ? 
+        OR player_position LIKE ? 
         OR hometown LIKE ?
     `;
     connection.query(query, [searchQuery, searchQuery, searchQuery], (err, results) => {
@@ -125,7 +125,24 @@ app.post('/api/athletes', (req, res) => {
             res.status(500).json({ error: 'Error creating athlete' });
             return;
         }
-        res.status(201).json({ id: results.insertId, message: 'Athlete created successfully' });
+        
+        // After inserting, fetch and return the created athlete
+        const selectQuery = 'SELECT * FROM Athlete WHERE player_ID = ?';
+        connection.query(selectQuery, [results.insertId], (err, selectResults) => {
+            if (err) {
+                console.error('Error fetching created athlete:', err);
+                res.status(201).json({ 
+                    id: results.insertId, 
+                    message: 'Athlete created successfully' 
+                });
+                return;
+            }
+            res.status(201).json({ 
+                id: results.insertId, 
+                message: 'Athlete created successfully',
+                athlete: selectResults[0]
+            });
+        });
     });
 });
 
@@ -400,44 +417,79 @@ app.post('/api/games', (req, res) => {
     });
 });
 
-// Statistics Routes
+// POST new statistics
 app.post('/api/statistics', (req, res) => {
     const {
-        player_ID, match_ID, minutes_played, field_goals_made,
-        field_goals_attempted, three_point_goals_made,
-        three_point_goals_attempted, free_throws_made,
-        free_throws_attempted, total_rebounds, assists,
-        steals, blocks, turnovers, fouls, points
+        player_ID, match_ID, minutes_played,
+        field_goals_made, field_goals_attempted,
+        three_point_goals_made, three_point_goals_attempted,
+        free_throws_made, free_throws_attempted,
+        total_rebounds, assists, steals, blocks, turnovers, fouls,
+        points
     } = req.body;
 
-    // Calculate percentages
-    const field_goal_percentage = field_goals_attempted > 0 
-        ? (field_goals_made / field_goals_attempted) * 100 
-        : 0;
-    
-    const three_point_percentage = three_point_goals_attempted > 0
-        ? (three_point_goals_made / three_point_goals_attempted) * 100
-        : 0;
-    
-    const free_throws_percentage = free_throws_attempted > 0
-        ? (free_throws_made / free_throws_attempted) * 100
-        : 0;
+    // First check if statistics already exist
+    const checkQuery = 'SELECT * FROM Statistic WHERE player_ID = ? AND match_ID = ?';
+    connection.query(checkQuery, [player_ID, match_ID], (checkErr, checkResults) => {
+        if (checkErr) {
+            console.error('Error checking statistics:', checkErr);
+            res.status(500).json({ message: 'Error checking statistics' });
+            return;
+        }
 
-    // Calculate advanced stats
-    const effective_field_goal_percentage = field_goals_attempted > 0
-        ? ((field_goals_made + 0.5 * three_point_goals_made) / field_goals_attempted) * 100
-        : 0;
+        if (checkResults.length > 0) {
+            res.status(400).json({ 
+                message: 'Statistics already exist for this player in this game' 
+            });
+            return;
+        }
 
-    const true_shooting_percentage = (points / (2 * (field_goals_attempted + 0.44 * free_throws_attempted))) * 100;
+        // Calculate percentages with zero handling
+        const field_goal_percentage = field_goals_attempted > 0 
+            ? (field_goals_made / field_goals_attempted) * 100 
+            : 0;
 
-    const player_efficiency = ((points + total_rebounds + assists + steals + blocks) - 
-        (field_goals_attempted - field_goals_made + 
-         free_throws_attempted - free_throws_made + turnovers)) / minutes_played;
+        const three_point_percentage = three_point_goals_attempted > 0 
+            ? (three_point_goals_made / three_point_goals_attempted) * 100 
+            : 0;
 
-    const player_rating_per_minute = (points + total_rebounds + assists + steals + blocks - turnovers - fouls) / minutes_played;
+        const free_throws_percentage = free_throws_attempted > 0 
+            ? (free_throws_made / free_throws_attempted) * 100 
+            : 0;
 
-    const query = `
-        INSERT INTO Statistic (
+        // Calculate advanced statistics with zero handling
+        const minutes = parseFloat(minutes_played) || 0.1; // Avoid division by zero
+        const player_rating_per_minute = minutes > 0 
+            ? (points + total_rebounds + assists + steals + blocks - turnovers - fouls) / minutes 
+            : 0;
+
+        const player_efficiency = minutes > 0 
+            ? ((points + total_rebounds + assists + steals + blocks) - 
+               (field_goals_attempted - field_goals_made + 
+                free_throws_attempted - free_throws_made + turnovers)) / minutes 
+            : 0;
+
+        const effective_field_goal_percentage = field_goals_attempted > 0 
+            ? ((field_goals_made + (0.5 * three_point_goals_made)) / field_goals_attempted) * 100 
+            : 0;
+
+        const true_shooting_percentage = (field_goals_attempted + (0.44 * free_throws_attempted)) > 0 
+            ? (points / (2 * (field_goals_attempted + (0.44 * free_throws_attempted)))) * 100 
+            : 0;
+
+        const query = `
+            INSERT INTO Statistic (
+                player_ID, match_ID, minutes_played,
+                field_goals_made, field_goals_attempted, field_goal_percentage,
+                three_point_goals_made, three_point_goals_attempted, three_point_percentage,
+                free_throws_made, free_throws_attempted, free_throws_percentage,
+                total_rebounds, assists, steals, blocks, turnovers, fouls,
+                points, player_rating_per_minute, player_efficiency,
+                effective_field_goal_percentage, true_shooting_percentage
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        connection.query(query, [
             player_ID, match_ID, minutes_played,
             field_goals_made, field_goals_attempted, field_goal_percentage,
             three_point_goals_made, three_point_goals_attempted, three_point_percentage,
@@ -445,24 +497,20 @@ app.post('/api/statistics', (req, res) => {
             total_rebounds, assists, steals, blocks, turnovers, fouls,
             points, player_rating_per_minute, player_efficiency,
             effective_field_goal_percentage, true_shooting_percentage
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    connection.query(query, [
-        player_ID, match_ID, minutes_played,
-        field_goals_made, field_goals_attempted, field_goal_percentage,
-        three_point_goals_made, three_point_goals_attempted, three_point_percentage,
-        free_throws_made, free_throws_attempted, free_throws_percentage,
-        total_rebounds, assists, steals, blocks, turnovers, fouls,
-        points, player_rating_per_minute, player_efficiency,
-        effective_field_goal_percentage, true_shooting_percentage
-    ], (err, results) => {
-        if (err) {
-            console.error('Error creating statistics:', err);
-            res.status(500).json({ error: 'Error creating statistics' });
-            return;
-        }
-        res.status(201).json({ message: 'Statistics created successfully' });
+        ], (err, results) => {
+            if (err) {
+                console.error('Error creating statistics:', err);
+                res.status(500).json({ 
+                    message: 'Error creating statistics record: ' + err.message 
+                });
+                return;
+            }
+            
+            res.status(201).json({ 
+                message: 'Statistics created successfully',
+                id: results.insertId
+            });
+        });
     });
 });
 
@@ -534,20 +582,21 @@ app.get('/api/analytics/top-scorers', (req, res) => {
     const gameDate = req.query.date;
     let query = `
         SELECT 
-            a.player_name,
+            s.player_ID as id,
+            a.player_name as name,
             s.points,
             CONCAT(ht.team_name, ' vs ', at.team_name) as game,
-            g.date
+            DATE_FORMAT(g.date, '%Y-%m-%d') as date
         FROM Statistic s
         JOIN Athlete a ON s.player_ID = a.player_ID
-        JOIN Game g ON s.match_ID = g.game_ID
+        JOIN Game g ON s.match_ID = g.match_ID
         JOIN Team ht ON g.home_team_ID = ht.team_ID
         JOIN Team at ON g.away_team_ID = at.team_ID
     `;
     
     const params = [];
     if (gameDate) {
-        query += ` WHERE DATE(g.date) = ?`;
+        query += ` WHERE g.date = ?`;
         params.push(gameDate);
     }
     
@@ -591,20 +640,23 @@ app.get('/api/analytics/team-ratios', (req, res) => {
 
 // GET highest scoring teams
 app.get('/api/analytics/highest-scoring', (req, res) => {
-    const minGames = req.query.minGames || 0;
+    const minGames = parseInt(req.query.minGames) || 0;
+    console.log('Fetching highest scoring teams with minGames:', minGames);
+    
     const query = `
         SELECT 
             t.team_ID as id,
             t.team_name as name,
             SUM(CASE 
                 WHEN g.home_team_ID = t.team_ID THEN g.home_team_score
-                ELSE g.away_team_score
+                WHEN g.away_team_ID = t.team_ID THEN g.away_team_score
+                ELSE 0
             END) as totalScore,
-            COUNT(g.game_ID) as gamesPlayed
+            COUNT(DISTINCT g.match_ID) as gamesPlayed
         FROM Team t
-        JOIN Game g ON t.team_ID IN (g.home_team_ID, g.away_team_ID)
-        GROUP BY t.team_ID
-        HAVING gamesPlayed >= ?
+        LEFT JOIN Game g ON t.team_ID IN (g.home_team_ID, g.away_team_ID)
+        GROUP BY t.team_ID, t.team_name
+        HAVING COUNT(DISTINCT g.match_ID) >= ?
         ORDER BY totalScore DESC
         LIMIT 5
     `;
@@ -615,6 +667,7 @@ app.get('/api/analytics/highest-scoring', (req, res) => {
             res.status(500).json({ error: 'Error fetching highest scoring teams' });
             return;
         }
+        console.log('Highest scoring teams results:', results);
         res.json({ highestScoringTeams: results });
     });
 });
@@ -624,7 +677,7 @@ app.get('/api/analytics/award-winners', (req, res) => {
     const awardType = req.query.type;
     let query = `
         SELECT 
-            aa.athlete_award_ID as id,
+            CONCAT(aa.athlete_ID, '_', aa.award_ID) as id,
             a.player_name as name,
             aw.award_name as award,
             YEAR(aw.award_date) as year
@@ -653,18 +706,21 @@ app.get('/api/analytics/award-winners', (req, res) => {
 
 // GET injured players
 app.get('/api/analytics/injured-players', (req, res) => {
-    const minDays = req.query.minDays || 0;
+    const minDays = parseInt(req.query.minDays) || 0;
+    console.log('Fetching injured players with minDays:', minDays);
+    
     const query = `
         SELECT 
             i.injury_ID as id,
             a.player_name as name,
             i.injury_type as injury,
-            DATEDIFF(CURRENT_DATE, i.injury_date) as daysOut
+            i.injury_date,
+            i.total_days_injured as daysOut,
+            i.status
         FROM Injury i
         JOIN Athlete a ON i.player_ID = a.player_ID
-        WHERE i.recovery_date IS NULL
-        AND DATEDIFF(CURRENT_DATE, i.injury_date) >= ?
-        ORDER BY daysOut DESC
+        WHERE i.total_days_injured >= ?
+        ORDER BY i.total_days_injured DESC
         LIMIT 5
     `;
 
@@ -674,6 +730,7 @@ app.get('/api/analytics/injured-players', (req, res) => {
             res.status(500).json({ error: 'Error fetching injured players' });
             return;
         }
+        console.log('Injured players results:', results);
         res.json({ injuredPlayers: results });
     });
 });
@@ -704,6 +761,133 @@ app.get('/api/analytics/team-averages', (req, res) => {
             return;
         }
         res.json({ teamAverages: results });
+    });
+});
+
+// POST new team
+app.post('/api/teams', (req, res) => {
+    const {
+        team_name, league, wins, losses, standing, location
+    } = req.body;
+
+    // Calculate record based on wins and losses
+    const record = wins && losses ? wins / (wins + losses) : 0;
+
+    const query = `
+        INSERT INTO Team (
+            team_name, league, wins, losses,
+            record, standing, location
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    connection.query(query, [
+        team_name, league, wins, losses,
+        record, standing, location
+    ], (err, results) => {
+        if (err) {
+            console.error('Error creating team:', err);
+            if (err.code === 'ER_DUP_ENTRY') {
+                res.status(400).json({ message: 'A team with this name already exists' });
+            } else {
+                res.status(500).json({ message: 'Error creating team: ' + err.message });
+            }
+            return;
+        }
+        
+        // After inserting, fetch and return the created team
+        const selectQuery = 'SELECT * FROM Team WHERE team_ID = ?';
+        connection.query(selectQuery, [results.insertId], (err, selectResults) => {
+            if (err) {
+                console.error('Error fetching created team:', err);
+                res.status(201).json({ 
+                    id: results.insertId, 
+                    message: 'Team created successfully, but unable to fetch details' 
+                });
+                return;
+            }
+            res.status(201).json({ 
+                message: 'Team created successfully',
+                team: selectResults[0]
+            });
+        });
+    });
+});
+
+// GET all athlete awards
+app.get('/api/athlete-awards', (req, res) => {
+    const query = `
+        SELECT aa.*, a.player_name, aw.award_name, aw.award_date
+        FROM Athlete_Award aa
+        JOIN Athlete a ON aa.athlete_ID = a.player_ID
+        JOIN Award aw ON aa.award_ID = aw.award_ID
+        ORDER BY aw.award_date DESC
+    `;
+    
+    connection.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching athlete awards:', err);
+            res.status(500).json({ message: 'Error fetching athlete awards' });
+            return;
+        }
+        res.json({ athleteAwards: results });
+    });
+});
+
+// GET all team awards
+app.get('/api/team-awards', (req, res) => {
+    const query = `
+        SELECT ta.*, t.team_name, aw.award_name, aw.award_date
+        FROM Team_Award ta
+        JOIN Team t ON ta.team_ID = t.team_ID
+        JOIN Award aw ON ta.award_ID = aw.award_ID
+        ORDER BY aw.award_date DESC
+    `;
+    
+    connection.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching team awards:', err);
+            res.status(500).json({ message: 'Error fetching team awards' });
+            return;
+        }
+        res.json({ teamAwards: results });
+    });
+});
+
+// GET all statistics
+app.get('/api/statistics', (req, res) => {
+  const query = `
+    SELECT s.*, a.player_name, g.date as game_date
+    FROM Statistic s
+    JOIN Athlete a ON s.player_ID = a.player_ID
+    JOIN Game g ON s.match_ID = g.match_ID
+    ORDER BY g.date DESC, a.player_name
+  `;
+  
+  connection.query(query, (err, results) => {
+    if (err) {
+      console.error('Error fetching statistics:', err);
+      res.status(500).json({ message: 'Error fetching statistics' });
+      return;
+    }
+    res.json(results);
+  });
+});
+
+// Add this new route for injuries
+app.post('/api/injuries', (req, res) => {
+    const { player_ID, injury_type, injury_date, recovery_date } = req.body;
+    const query = `
+        INSERT INTO Injury (player_ID, injury_type, injury_date, recovery_date)
+        VALUES (?, ?, ?, ?)
+    `;
+    
+    connection.query(query, [player_ID, injury_type, injury_date, recovery_date], (err, results) => {
+        if (err) {
+            console.error('Error creating injury record:', err);
+            res.status(500).json({ error: 'Error creating injury record' });
+            return;
+        }
+        res.status(201).json({ id: results.insertId, message: 'Injury record created successfully' });
     });
 });
 

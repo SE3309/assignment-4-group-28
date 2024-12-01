@@ -17,6 +17,7 @@ export default function GameForm() {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [successMessage, setSuccessMessage] = useState(null);
 
   useEffect(() => {
     fetchTeams();
@@ -45,6 +46,7 @@ export default function GameForm() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     // Validate that home and away teams are different
     if (formData.home_team_ID === formData.away_team_ID) {
@@ -55,6 +57,9 @@ export default function GameForm() {
 
     try {
       await axios.post('http://localhost:3001/api/games', formData);
+      const homeTeam = teams.find(t => t.team_ID === parseInt(formData.home_team_ID));
+      const awayTeam = teams.find(t => t.team_ID === parseInt(formData.away_team_ID));
+      setSuccessMessage(`Successfully created game: ${homeTeam?.team_name} vs ${awayTeam?.team_name}`);
       setFormData({
         home_team_ID: '',
         away_team_ID: '',
@@ -64,12 +69,23 @@ export default function GameForm() {
         league: '',
         match_type: ''
       });
-      fetchGames(); // Refresh the list
+      fetchGames();
     } catch (err) {
-      setError('Failed to create game record');
+      if (err.response) {
+        setError(err.response.data.message || 'Failed to create game. Please check all required fields.');
+      } else if (err.request) {
+        setError('Unable to reach the server. Please check your connection and try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
       console.error('Error creating game:', err);
     } finally {
       setIsLoading(false);
+      if (successMessage) {
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 5000);
+      }
     }
   };
 
@@ -107,6 +123,21 @@ export default function GameForm() {
       {error && (
         <div className="bg-red-50 p-4 rounded-md">
           <p className="text-red-700">{error}</p>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="bg-green-50 p-4 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">{successMessage}</p>
+            </div>
+          </div>
         </div>
       )}
 

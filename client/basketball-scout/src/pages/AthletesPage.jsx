@@ -13,6 +13,8 @@ export default function AthletesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const athletesPerPage = 10; // Number of athletes per page
 
+  const [notification, setNotification] = useState({ message: '', show: false });
+
   useEffect(() => {
     // Add debounce to search
     const delayDebounceFn = setTimeout(() => {
@@ -59,6 +61,14 @@ export default function AthletesPage() {
         await fetchAthletes(); // Refresh the list
       } catch (error) {
         console.error('Error deleting athlete:', error);
+        setNotification({
+          message: "Can't delete because this player is associated with existing statistics or other records",
+          show: true
+        });
+        // Hide notification after 3 seconds
+        setTimeout(() => {
+          setNotification({ message: '', show: false });
+        }, 3000);
       }
     }
   };
@@ -86,6 +96,14 @@ export default function AthletesPage() {
             <p className="mt-4 text-pretty text-lg font-medium text-gray-500 sm:text-xl/8">
               View, search, and manage athlete profiles.
             </p>
+            
+            {notification.show && (
+              <div className="mt-4 animate-fade-in-down">
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                  <span className="block sm:inline">{notification.message}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Search Bar */}
